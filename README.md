@@ -168,30 +168,52 @@ Explorer container.
 
 ### Node menu defined in C#
 
-`Show Menu...` (right-click a node, or the view title) lists the entries the
-**language server** defines, so a menu row written in C# shows up here with no
-change to this extension:
+The node menu mixes rows this extension implements itself (Add Folder, Add Blank
+File, Delete) with rows the **language server** defines. Both are ordinary
+`contributes` rows, so they look and behave identically - the C#-defined ones
+just have their ids and labels generated from the server's catalog.
 
 | Entry | What it does |
 |---|---|
-| `Simulation Setup (files)` | lists the top module, the files the simulator would compile and the include paths (the same `SimulationSetup` collection the desktop editor's Run Simulation uses), plus any unresolved references |
+| `Simulation` › `Simulation Setup (files)` | lists the top module, the files the simulator would compile and the include paths (the same `SimulationSetup` collection the desktop editor's Run Simulation uses), plus any unresolved references |
 | `Open in Explorer` | reveals the node's file in the OS file manager |
 | `Copy Path` | copies the workspace-relative path |
 | `Copy Instance Path` | copies the instance path (`u_mid.u_leaf`) |
 | `Property` | shows the node's path / instance path / error and warning counts |
 
-The rows live in the plugin's `CoreBridge.HierarchyMenuCatalog`; a plugin can
-append its own with `HierarchyMenuCatalog.Register(...)`. The server answers
-which rows apply to the selected node through `rtl/hierarchyMenu` (and runs the
-picked one through `rtl/hierarchyMenuInvoke`), so the extension needs no
-knowledge of them.
+The rows live in the plugin's `CoreBridge.HierarchyMenuCatalog`, including the
+submenu nesting (`Entry.ParentId` / `Entry.IsSubmenu`); a plugin can append its
+own with `HierarchyMenuCatalog.Register(...)`.
 
-> VS Code declares `view/item/context` menu entries statically in
-> `package.json`, which is why a single `Show Menu...` command fronts the whole
-> server-defined list: that is the only way an entry added in C# can appear
-> without shipping a new extension. The entries that are pure file-system
-> actions and need no analysis (Add Folder, Add Blank File, Delete) stay as
-> static entries.
+#### Why the rows are generated
+
+VS Code reads `contributes.commands`, `contributes.submenus` and
+`contributes.menus."view/item/context"` from `package.json` when the extension
+loads, and has **no API to add a menu row at run time** (`registerCommand` only
+provides the implementation). To keep the catalog the single source of truth,
+`CoreBridge/HierarchyMenuManifest` renders it into the manifest:
+
+```
+dotnet SystemVerilogLanguageServer/bin/Debug/net10.0/SystemVerilogLanguageServer.dll \
+    --hierarchy-menu-manifest
+```
+
+Copy `commands` / `submenus` / `menus.viewItemContext` from the output into
+`package.json`. Each generated command id is
+`systemverilogLsp.hierarchy.<catalog id>`, and `hierarchy.js` registers one
+implementation per id (`GENERATED_HIERARCHY_MENU_IDS`) that forwards to
+`rtl/hierarchyMenuInvoke` - the same path the static rows use.
+
+`SystemVerilogLanguageServer.Tests/HierarchyMenuManifestTests` fails when
+`package.json`, `hierarchy.js` and the catalog drift apart.
+
+#### `Show Menu...` fallback
+
+`Show Menu...` (right-click a node, or the view title) still opens a QuickPick
+listing every applicable entry through `rtl/hierarchyMenu`. It is what makes an
+entry a plugin registers **at run time** reachable without regenerating the
+manifest; nested rows appear prefixed with their submenu label
+(`Simulation › Simulation Setup (files)`) because a QuickPick cannot nest.
 
 ## Messages pane
 
