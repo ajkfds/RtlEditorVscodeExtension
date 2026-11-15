@@ -357,6 +357,43 @@ Notes:
 - To debug only the extension, run **Run Extension** (the non-TCP one); it
   spawns the server itself and needs no other configuration.
 
+### Updating the bundled server
+
+The extension spawns the copy under `server/`, so **any C# change needs that
+folder rebuilt**. Use the batch file:
+
+```bat
+update-server.bat              :: empty server\, publish, prune, selftest
+update-server.bat --check      :: just report the current size
+update-server.bat --no-publish :: prune an existing publish without rebuilding
+```
+
+It does the three steps that must happen together, for the reason described
+below:
+
+1. **empty `server/`** — `dotnet publish -o` only adds and overwrites files, so
+   a previous publish's leftovers stay forever,
+2. **`dotnet publish`** (`-c Release -p:CopyOutputSymbolsToPublishDirectory=false`),
+3. **prune** — remove `.playwright/`, `**/*.pdb` and the non-host
+   `runtimes/<rid>` folders.
+
+Then it prints the resulting file count and runs `--selftest`.
+
+> **Why the prune is mandatory**: the VS Code extension development host dies
+> with **exit code 134** (SIGABRT) about a second after
+> `Loading development extension`, with no `exthost` folder and no crash log,
+> when `server/` is too large. That reads as "the extension failed to start".
+> It happened at 322 files / 734.9 MB; a healthy folder is about **147 files /
+> 100 MB**. Note that `-p:CopyOutputSymbolsToPublishDirectory=false` alone does
+> **not** prevent this — publishing into an empty folder still produced
+> 314 files / 733.9 MB (six `.pdb` plus the whole `.playwright` bundle), so the
+> prune step is what keeps it small. An `AfterTargets="Publish"` MSBuild target
+> was tried instead and does not work (`-o <relative dir>` makes the item globs
+> resolve against the project directory), which is why this is a script.
+
+`npm run package` / `npm run vsix` runs `scripts/bundle-server.js`, which
+performs the same three steps (plus the `.vsix` build).
+
 ### Spawning a published server
 
 For development the extension also looks for a server published at
