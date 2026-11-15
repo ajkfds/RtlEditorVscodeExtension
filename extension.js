@@ -701,6 +701,12 @@ function wireClient(client, spawnFailed) {
             if (legend && Array.isArray(legend.tokenTypes) && legend.tokenTypes.length > 0) {
                 tokenTypesByIndex = legend.tokenTypes.slice();
                 logLine('semantic token legend from server: ' + tokenTypesByIndex.join(','));
+                // VS Code froze the legend when the provider was registered
+                // during activate (before this handshake), so a fallback array
+                // that differs from the server's would mis-index every token
+                // from the first difference on. Re-register the provider with
+                // the authoritative legend; the old registration is disposed.
+                reregisterSemanticTokensProvider();
             }
         } catch (e) {
             logLine('could not read the server legend: ' + (e && e.message));
@@ -872,13 +878,75 @@ function toLocations(items) {
 
 // semantic tokens: build a vscode.SemanticTokens from the server response.
 //
-// The legend is NOT hard-coded here: it is read from the server's initialize
-// result (semanticTokensProvider.legend), so the token type order can only be
-// defined in one place (the C# side). This fallback is used only until the
-// initialize result has been seen.
+// The token type order is defined once, on the C# side
+// (LspHandler.Theme.cs -> SemanticTokenTypes); this array is only a
+// placeholder for the window before initialize has answered.
+//
+// It must nevertheless match the server EXACTLY, because VS Code fixes the
+// legend when registerDocumentSemanticTokensProvider is called (which happens
+// during activate, before the handshake) and interprets every returned token
+// index with that legend forever. Adopting the server legend afterwards only
+// changes how this side BUILDS the stream, so any difference shifts every
+// later token type by one:
+//
+//   - this array was missing 'reference' (the generic fallback token the
+//     lightweight scanner emits), so server index 12 ('reference') was read as
+//     'annotation' and painted lime, and index 13 ('annotation') fell outside
+//     the registered legend and lost its colour entirely.
+//
+// SystemVerilogLanguageServer.Tests/ExtensionLegendTests.cs parses this literal
+// and fails when it drifts from the server's SemanticTokenTypes.
 let tokenTypesByIndex = ['keyword', 'comment', 'string', 'number', 'macro',
     'function', 'type', 'variable', 'property', 'parameter', 'register', 'identifier',
-    'annotation'];
+    'reference', 'annotation'];
+
+// Disposables of the currently registered semantic-token providers. They are
+// replaced (not just pushed onto context.subscriptions) when the server's
+// legend arrives: VS Code fixes the legend at registration time, so a provider
+// registered with a placeholder legend would keep mis-indexing the tokens.
+let semanticTokensDisposables = [];
+
+/**
+ * Registers the semantic-token providers with the current legend.
+ *
+ * Split out of activateCore because it runs twice: once with the placeholder
+ * legend during activate, and again from the initialize handler once the
+ * server's authoritative legend is known.
+ */
+function registerSemanticTokensProvider(context) {
+    for (const d of semanticTokensDisposables) {
+        try { d.dispose(); } catch (e) { /* already disposed */ }
+    }
+    semanticTokensDisposables = [];
+    const legend = new vscode.SemanticTokensLegend(tokenTypesByIndex.slice(), []);
+    for (const language of ['systemverilog', 'verilog']) {
+        semanticTokensDisposables.push(
+            vscode.languages.registerDocumentSemanticTokensProvider(
+                { scheme: 'file', language },
+                { provideDocumentSemanticTokens: (doc) => withClient(() => provideDocumentSemanticTokens(doc)) },
+                legend
+            )
+        );
+    }
+    if (context) {
+        for (const d of semanticTokensDisposables) context.subscriptions.push(d);
+    }
+}
+
+/**
+ * Re-registers the semantic-token providers after the server legend has been
+ * adopted, so the legend VS Code uses matches the one the tokens are encoded
+ * with. A no-op until activate has run.
+ */
+function reregisterSemanticTokensProvider() {
+    try {
+        registerSemanticTokensProvider(getContext());
+        logLine('semantic tokens provider re-registered with the server legend (' +
+            tokenTypesByIndex.length + ' token types)');
+    } catch (e) {
+        logLine('semantic tokens re-registration ERROR: ' + (e && e.message));
+    }
+}
 
 function provideDocumentSemanticTokens(doc) {
     logLine('provideDocumentSemanticTokens called: ' + doc.uri.toString());
@@ -1503,23 +1571,7 @@ function activateCore(context) {
     registerAutoConnectCommand(context);
 
     try {
-        // The legend is the server's (adopted from initialize); the fallback
-        // above only covers the window before initialize has answered.
-        const legend = new vscode.SemanticTokensLegend(tokenTypesByIndex.slice(), []);
-        context.subscriptions.push(
-            vscode.languages.registerDocumentSemanticTokensProvider(
-                { scheme: 'file', language: 'systemverilog' },
-                { provideDocumentSemanticTokens: (doc) => withClient(() => provideDocumentSemanticTokens(doc)) },
-                legend
-            )
-        );
-        context.subscriptions.push(
-            vscode.languages.registerDocumentSemanticTokensProvider(
-                { scheme: 'file', language: 'verilog' },
-                { provideDocumentSemanticTokens: (doc) => withClient(() => provideDocumentSemanticTokens(doc)) },
-                legend
-            )
-        );
+        registerSemanticTokensProvider(context);
         logLine('semantic tokens provider registered');
     } catch (e) {
         logLine('semantic tokens registration ERROR: ' + (e && e.message));
@@ -1846,6 +1898,16 @@ function deactivate() {
     } catch (e) { /* ignore */ }
     try { openedDocs.clear(); } catch (e) { /* ignore */ }
     try { if (diagnosticCollection) diagnosticCollection.clear(); } catch (e) { /* ignore */ }
+    // The semantic-token providers are also in context.subscriptions, but the
+    // list is owned here (see registerSemanticTokensProvider) so it is cleared
+    // explicitly: a stale entry would make the next activation dispose
+    // providers that belong to the new session.
+    try {
+        for (const d of semanticTokensDisposables) {
+            try { d.dispose(); } catch (e) { /* ignore */ }
+        }
+        semanticTokensDisposables = [];
+    } catch (e) { /* ignore */ }
     // Allow the next activation to register everything again.
     activated = false;
 }
