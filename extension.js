@@ -877,7 +877,8 @@ function toLocations(items) {
 // defined in one place (the C# side). This fallback is used only until the
 // initialize result has been seen.
 let tokenTypesByIndex = ['keyword', 'comment', 'string', 'number', 'macro',
-    'function', 'type', 'variable', 'property', 'parameter', 'register', 'identifier'];
+    'function', 'type', 'variable', 'property', 'parameter', 'register', 'identifier',
+    'annotation'];
 
 function provideDocumentSemanticTokens(doc) {
     logLine('provideDocumentSemanticTokens called: ' + doc.uri.toString());
@@ -1332,7 +1333,19 @@ function activateCore(context) {
         logLine('replacing a stale semanticTokenColorCustomizations palette (identifier ' +
             existingIdentifier + ')');
     }
-    if (!existingColors.globalValue && !existingColors.workspaceValue || prevDefault) {
+    // The palette written by older builds has no rule for the "annotation"
+    // token type (comment annotations inside a comment: `// @sync:clk`,
+    // `// @clock`, `// @scope ...`). Without it VS Code draws them with the
+    // "comment" colour, so they are indistinguishable from the comment text.
+    // Detecting the missing rule and rewriting the palette upgrades those
+    // settings automatically.
+    const existingRules = (existingColors.globalValue && existingColors.globalValue.rules) ||
+        (existingColors.workspaceValue && existingColors.workspaceValue.rules) || null;
+    const missingAnnotationRule = existingRules !== null && existingRules.annotation === undefined;
+    if (missingAnnotationRule) {
+        logLine('semanticTokenColorCustomizations has no "annotation" rule; rewriting the palette');
+    }
+    if (!existingColors.globalValue && !existingColors.workspaceValue || prevDefault || missingAnnotationRule) {
         withClient(async () => {
             const theme = await client.request('rtl/theme', {});
             if (!theme || !theme.rules) {

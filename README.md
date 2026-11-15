@@ -10,7 +10,9 @@ or build step needed once it is packaged).
 
 - Go to definition / Find references / Hover (markdown) / Outline
   (`documentSymbol`) / Completion
-- Semantic-token syntax highlighting driven by the parser
+- Semantic-token syntax highlighting driven by the parser (including the
+  comment annotations such as `// @sync:clk` / `// @clock` / `// @scope ...`,
+  which keep the editor's distinct colour instead of blending into the comment)
 - Diagnostics (parse errors / warnings / notices) as editor squiggles and in the
   Problems panel
 - **RTL Hierarchy** tree view (see below) with the same content as RtlEditor2's
@@ -68,20 +70,39 @@ A QuickPick is used because VS Code has no API to place a flyout at the caret.
 
 `SystemVerilog Snippet: Auto Connect Ports` (also in the editor right-click
 menu) opens a panel listing **every port** of the module instantiation under the
-caret, the same content as RtlEditor2's `AutoConnectWindow`:
+caret, the same content and the same interaction as RtlEditor2's
+`AutoConnectWindow`:
 
-- one row per port, with its direction and a drop-down of the signals the
-  editor would connect (a signal whose name equals the port name, or the port
-  name without an `_I` / `_O` / `_IO` suffix);
-- ports already connected show their current signal pre-selected;
+- one row per port showing the port name, its direction, the connection
+  currently written in the instantiation, the best candidate signal and the
+  result that will be written;
+- the candidate is the signal the editor would connect (a signal whose name
+  equals the port name, or the port name without an `_I` / `_O` / `_IO`
+  suffix);
 - port groups (`// @group` annotations) are shown as comment rows;
 - **Apply** rewrites the instantiation with the chosen connections, **Cancel**
   leaves it untouched.
 
+There is no drop-down: like the desktop window, each row is accepted or
+rejected as a whole, and the keyboard is enough to drive it.
+
+| Key | Action |
+|---|---|
+| `Up` / `Down` | move the cursor between ports |
+| `Left` / `Space` | accept the row (connect the best candidate) and move down |
+| `Right` | reject the row (leave the port unconnected) and move down |
+| `Enter` | apply every row and close |
+| `Escape` | cancel |
+
+The `✓` / `✗` buttons on each row are the mouse equivalent of `Left` / `Right`;
+clicking a row moves the cursor. Port group rows are not selectable, so
+`Left` / `Right` always acts on a port.
+
 The matching rule lives in the language server (the same code the desktop
 editor uses), so the extension only renders the rows and forwards the choices.
 The panel is a webview rather than a QuickPick because the whole port list has
-to be visible at once, which a QuickPick cannot do.
+to be visible at once, and a QuickPick cannot show a per-row current value
+next to its candidate.
 
 ## RTL Hierarchy view
 
