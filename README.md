@@ -12,7 +12,11 @@ or build step needed once it is packaged).
   (`documentSymbol`) / Completion
 - Semantic-token syntax highlighting driven by the parser (including the
   comment annotations such as `// @sync:clk` / `// @clock` / `// @scope ...`,
-  which keep the editor's distinct colour instead of blending into the comment)
+  which keep the editor's distinct colour instead of blending into the comment).
+  Declaration names (the module name of an instantiation, the instance name and
+  the named port labels such as `.clk`) use the editor's teal `identifier`
+  colour; plain references keep their data-object colour (net / variable /
+  register / parameter)
 - Diagnostics (parse errors / warnings / notices) as editor squiggles and in the
   Problems panel
 - **RTL Hierarchy** tree view (see below) with the same content as RtlEditor2's
@@ -37,14 +41,20 @@ menu:
 |---|---|
 | `Insert alwaysFF Block` | `always @(posedge clk or negedge rst)` block; the clock / reset are taken from the ports annotated `// @sync: clock` / `// @sync: reset` |
 | `AutoFormat Instance at Caret` | Reformats **only** the module instantiation under the caret (one port connection per line). This is the editor's `autoFormat` tool, not the whole-document formatter |
-| `Insert Module Instance` | Full instantiation of a module (parameter overrides + one named port connection per port). Shows a module picker first |
+| `Insert Module Instance` | Full instantiation of a module (parameter overrides + one named port connection per port). Shows a module picker first. The instance name is tab stop 1 (prefilled) and every port connection is a **blank** tab stop - like the editor, no signal name is guessed |
 | `Fill Port Connections` | Rewrites the instantiation under the caret, filling every port connection |
 | `Invert Selected Ports` | Flips `input`/`output` and the `_I`/`_O` name suffix of the selected port declarations |
 | `Generate Modport` | Modport listing every logic signal of the enclosing interface |
 
-The inserted text uses VS Code snippet tab stops (`${1:name}`), so `Tab` jumps
-between the fields. The interactive key handling of the editor's snippets is not
+The inserted text uses VS Code snippet tab stops, so `Tab` jumps between the
+fields. The interactive key handling of the editor's snippets is not
 reproduced.
+
+`Insert Module Instance` uses `${1:name}` for the instance name and a blank
+`${2}` / `${3}` ... for every port connection: the editor's own snippet writes
+`.port(  )` and never guesses a signal, so accepting the snippet does not wire a
+port to a signal that may not exist. `Fill Port Connections` is the tool that
+*does* fill them (it derives the signal from the port name).
 
 ## Tool menu (`Shift+Space`)
 

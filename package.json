@@ -327,7 +327,8 @@
           "number": "#CE9178",
           "string": "#CE9178",
           "register": "#FF3232",
-          "identifier": "#D4D4D4",
+          "identifier": "#4EC9B0",
+          "reference": "#D4D4D4",
           "annotation": "#C8FF64"
         }
       }

@@ -1321,10 +1321,11 @@ function activateCore(context) {
     // Values this extension wrote in the past and that are now known to be
     // wrong. They must be replaced, otherwise the stale palette sticks in the
     // user's settings forever:
-    //   #D4D4D4 - the very first hard-coded default
-    //   #4EC9B0 - identifier mapped to ColorType.Identifier (teal), which made
-    //             every plain reference teal instead of the default foreground
-    const staleIdentifierColors = ['#D4D4D4', '#4EC9B0'];
+    //   #D4D4D4 - identifier mapped to ColorType.Normal, which made the module
+    //             name / instance name / port labels grey although the editor
+    //             colours them teal. The palette written by such a build also
+    //             has no "reference" rule, so that check below catches it too.
+    const staleIdentifierColors = ['#D4D4D4'];
     const existingIdentifier = existingColors.globalValue &&
         existingColors.globalValue.rules && existingColors.globalValue.rules.identifier;
     const prevDefault = typeof existingIdentifier === 'string' &&
@@ -1345,7 +1346,16 @@ function activateCore(context) {
     if (missingAnnotationRule) {
         logLine('semanticTokenColorCustomizations has no "annotation" rule; rewriting the palette');
     }
-    if (!existingColors.globalValue && !existingColors.workspaceValue || prevDefault || missingAnnotationRule) {
+    // Same reasoning for the "reference" token type: builds before it existed
+    // mapped every unclassified word onto "identifier", which is now the teal
+    // declaration colour. A palette without the rule would paint those words
+    // teal, so it is rewritten.
+    const missingReferenceRule = existingRules !== null && existingRules.reference === undefined;
+    if (missingReferenceRule) {
+        logLine('semanticTokenColorCustomizations has no "reference" rule; rewriting the palette');
+    }
+    if (!existingColors.globalValue && !existingColors.workspaceValue
+        || prevDefault || missingAnnotationRule || missingReferenceRule) {
         withClient(async () => {
             const theme = await client.request('rtl/theme', {});
             if (!theme || !theme.rules) {
