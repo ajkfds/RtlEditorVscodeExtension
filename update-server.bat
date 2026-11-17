@@ -30,6 +30,13 @@ rem   update-server.bat --no-publish prune an existing publish without rebuildin
 rem
 rem Requires the .NET SDK on PATH. Must be run from anywhere; the paths are
 rem resolved relative to this file.
+rem
+rem NOTE on parentheses: cmd.exe parses a parenthesised block (if/else/for body)
+rem as a whole, so a literal ")" inside an echo in such a block CLOSES the block
+rem early and the rest of the line is executed as a command. That is how
+rem "Close VS Code (all windows) and try again." produced
+rem "and was unexpected at this time." and aborted the script. Escape them as
+rem ^( ^) inside blocks - see the echoes below.
 rem ---------------------------------------------------------------------------
 
 set "EXITCODE=0"
@@ -98,13 +105,27 @@ if "%CHECK_ONLY%"=="1" (
 
 rem ---- 1. empty the output folder ------------------------------------------
 rem This is not optional: dotnet publish only adds / overwrites files.
+rem --no-publish must NOT empty it (that would leave nothing to prune), so the
+rem whole step is skipped in that mode.
+if "%DO_PUBLISH%"=="0" (
+    echo [1/3] skipped ^(--no-publish^)
+    if not exist "%SERVER_DIR%" (
+        echo [ERROR] nothing to prune: %SERVER_DIR% does not exist.
+        set "EXITCODE=1"
+        goto :finish
+    )
+    goto :do_prune
+)
+
 if exist "%SERVER_DIR%" (
     echo [1/3] removing %SERVER_DIR%
     rd /s /q "%SERVER_DIR%"
     if exist "%SERVER_DIR%" (
         echo [ERROR] could not remove the server folder.
         echo         A running VS Code language server may be locking it.
-        echo         Close VS Code (all windows) and try again.
+        rem The parentheses MUST be escaped: this echo lives inside the "if exist
+        rem (...)" block and an unescaped ")" would end the block early.
+        echo         Close VS Code ^(all windows^) and try again.
         set "EXITCODE=1"
         goto :finish
     )
@@ -112,18 +133,11 @@ if exist "%SERVER_DIR%" (
     echo [1/3] %SERVER_DIR% does not exist yet
 )
 
-if "%DO_PUBLISH%"=="0" (
-    echo [2/3] skipped ^(--no-publish^)
-    if not exist "%SERVER_DIR%" (
-        echo [ERROR] nothing to prune: %SERVER_DIR% is empty.
-        set "EXITCODE=1"
-        goto :finish
-    )
-    goto :do_prune
-)
-
 rem ---- 2. publish ----------------------------------------------------------
-echo [2/3] dotnet publish (Release)
+rem Escaped because the line sits directly after a ")" line; harmless either
+rem way, but keep the whole script consistent so a future edit cannot turn it
+rem into a block terminator.
+echo [2/3] dotnet publish ^(Release^)
 pushd "%REPO_ROOT%"
 dotnet publish "%CSPROJ%" -c Release -o "%SERVER_DIR%" ^
     -p:DebugType=None -p:DebugSymbols=false ^
@@ -167,7 +181,8 @@ rem ===========================================================================
 :usage
 echo Usage: update-server.bat [--check] [--no-publish]
 echo.
-echo   (no argument)  empty server\, publish, then prune
+rem Escaped so the "(" / ")" render literally instead of opening a block.
+echo   ^(no argument^)  empty server\, publish, then prune
 echo   --check        report the current size and exit
 echo   --no-publish   prune an existing publish without rebuilding
 echo.
@@ -194,15 +209,19 @@ goto :eof
 
 :prune_runtimes
 if not exist "%SERVER_DIR%\runtimes" goto :eof
-rem Keep only the host platform family: win / osx / linux (any architecture),
-rem so win-x64, win-x86 and win-arm64 all survive on Windows.
+rem Keep ONLY the host platform family (win* on Windows, any architecture, so
+rem win-x64 / win-x86 / win-arm64 all survive). The extension host always runs
+rem on the platform the extension was installed on, so osx / linux / browser /
+rem maccatalyst are dead weight - and they are what pushed the folder to 734 MB.
+rem :verify below fails when anything outside the family survives, so the two
+rem must agree: an earlier version kept win+osx+linux here while verify demanded
+rem linux-x64 / osx-arm64 be gone, which made EVERY run exit with code 1 while
+rem leaving the folder oversized.
 for /d %%D in ("%SERVER_DIR%\runtimes\*") do (
     set "RID=%%~nxD"
-    set "KEEP=0"
-    if /i "!RID:~0,3!"=="win" set "KEEP=1"
-    if /i "!RID:~0,3!"=="osx" set "KEEP=1"
-    if /i "!RID:~0,5!"=="linux" set "KEEP=1"
-    if "!KEEP!"=="0" (
+    if /i "!RID:~0,3!"=="win" (
+        echo   kept runtimes\!RID!
+    ) else (
         rd /s /q "%%~fD" 2>nul
         if exist "%%~fD" (
             echo   [warn] could not remove runtimes\!RID!
@@ -233,8 +252,9 @@ if exist "%SERVER_DIR%\runtimes" (
 set "PLAYWRIGHT=absent"
 if exist "%SERVER_DIR%\.playwright" set "PLAYWRIGHT=PRESENT"
 
-rem 150 files is the threshold above which the extension host starts dying;
-rem report it plainly so the state is obvious at a glance.
+rem A healthy folder is ~147 files / ~100 MB; the crash was measured at 322
+rem files / 734.9 MB. 200 files is the point where the folder is clearly the
+rem result of an unpruned publish, so report it plainly.
 set "SIZE_STATE=ok"
 if !FILES! GTR 200 set "SIZE_STATE=TOO BIG - the extension host will crash (exit code 134)"
 echo   files: !FILES! (!SIZE_STATE!)
@@ -250,15 +270,21 @@ if not exist "%SERVER_EXE%" (
 )
 
 rem The point of this script is a small folder, so fail loudly when the prune
-rem did not actually happen (a leftover .playwright or a foreign runtime means
-rem the extension host will die again with exit code 134).
+rem did not actually happen (a leftover .playwright, a *.pdb or a foreign
+rem runtime means the extension host will die again with exit code 134).
+rem This check must match :prune_runtimes / :prune_pdb exactly.
 set "LEFTOVER=0"
 if exist "%SERVER_DIR%\.playwright" set "LEFTOVER=1"
-if exist "%SERVER_DIR%\runtimes\linux-x64" set "LEFTOVER=1"
-if exist "%SERVER_DIR%\runtimes\osx-arm64" set "LEFTOVER=1"
+for /d %%D in ("%SERVER_DIR%\runtimes\*") do (
+    set "RID=%%~nxD"
+    if /i not "!RID:~0,3!"=="win" set "LEFTOVER=1"
+)
+set "PDB_LEFT=0"
+for /f %%A in ('dir /s /b /a-d "%SERVER_DIR%\*.pdb" 2^>nul ^| find /c /v ""') do set "PDB_LEFT=%%A"
+if not "!PDB_LEFT!"=="0" set "LEFTOVER=1"
 if "!LEFTOVER!"=="1" (
-    echo   [ERROR] prune incomplete: .playwright or a foreign runtime is still
-    echo           there. The extension host will crash on startup.
+    echo   [ERROR] prune incomplete: .playwright, a *.pdb or a foreign runtime
+    echo           is still there. The extension host will crash on startup.
     set "EXITCODE=1"
 )
 
