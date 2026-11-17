@@ -32,23 +32,51 @@ or build step needed once it is packaged).
 
 ## Snippets
 
-The snippet logic lives in the language server (the same code the RtlEditor2
-editor uses), so the extension only inserts the text it returns. Available from
-the command palette (`SystemVerilog Snippet: ...`) and the editor right-click
-menu:
+**All snippet logic is implemented in C#.** The extension holds none of it: it
+asks the server (`rtl/snippet`) for the text and inserts it. The desktop editor
+uses the same code - `CoreBridge.SnippetAdapter` produces the text and
+`Verilog/Snippets/SnippetRunner` drives the editor's highlights - so a snippet
+cannot behave differently in the two hosts.
+
+Available from the command palette (`SystemVerilog Snippet: ...`) and the
+editor right-click menu:
 
 | Command | What it does |
 |---|---|
-| `Insert alwaysFF Block` | `always @(posedge clk or negedge rst)` block; the clock / reset are taken from the ports annotated `// @sync: clock` / `// @sync: reset` |
+| `Insert alwaysFF Block` | `always @(posedge clk or negedge rst)` block; the clock / reset are prefilled tab stops taken from the ports annotated `// @sync: clock` / `// @sync: reset`. With several annotated clocks / resets the tab stop becomes a choice list, and the `if(~reset)` follows the reset field automatically |
 | `AutoFormat Instance at Caret` | Reformats **only** the module instantiation under the caret (one port connection per line). This is the editor's `autoFormat` tool, not the whole-document formatter |
 | `Insert Module Instance` | Full instantiation of a module (parameter overrides + one named port connection per port). Shows a module picker first. The instance name is tab stop 1 (prefilled) and every port connection is a **blank** tab stop - like the editor, no signal name is guessed |
 | `Fill Port Connections` | Rewrites the instantiation under the caret, filling every port connection |
 | `Invert Selected Ports` | Flips `input`/`output` and the `_I`/`_O` name suffix of the selected port declarations |
 | `Generate Modport` | Modport listing every logic signal of the enclosing interface |
 
-The inserted text uses VS Code snippet tab stops, so `Tab` jumps between the
-fields. The interactive key handling of the editor's snippets is not
-reproduced.
+The text of every snippet comes from **one implementation**
+(`CoreBridge.SnippetAdapter` in the plugin), which renders the same template
+twice:
+
+- `snippetText` with VS Code tab stops (`${1:name}`, `${2|a,b|}`) - inserted by
+  this extension;
+- `plainText` with every field's default inlined - inserted by the desktop
+  editor, which highlights the reported `fields` and lets the user tab through
+  them.
+
+Because both hosts read the same template they cannot insert different text
+(they used to have separate builders - e.g. port inversion kept two copies of
+its regular expression). The interaction is expressed declaratively, so VS Code
+gets it without any extra client logic:
+
+| editor behaviour | VS Code equivalent |
+|---|---|
+| several clocks / resets offered in a popup | `${1\|CLK_I,CLK2_I\|}` choice list |
+| `if(~reset)` copied from the reset field | `${2}` used twice (a mirror) |
+| `Tab` / `Enter` moves to the next field | `Tab` / `Shift+Tab` |
+| `Escape` aborts | `Escape` (or click outside the snippet) |
+| caret moved to another line aborts | leaving the snippet session ends it |
+
+The editor's key handling is therefore not "not reproduced": what it did
+imperatively (ask, copy, move on) is what the tab stops and mirrors describe.
+Only `Connection Check` remains desktop-only, because its result is a tree
+window rather than inserted text.
 
 `Insert Module Instance` uses `${1:name}` for the instance name and a blank
 `${2}` / `${3}` ... for every port connection: the editor's own snippet writes

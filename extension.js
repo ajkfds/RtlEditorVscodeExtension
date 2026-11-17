@@ -1693,17 +1693,33 @@ async function applySnippet(kind, argument) {
     }
 }
 
-/** Applies one snippet entry (insert at the caret, or replace a range). */
+/**
+ * Applies one snippet entry (insert at the caret, or replace a range).
+ *
+ * The body always comes from the server (plugin CoreBridge.SnippetAdapter), so
+ * the editor and this extension insert the same text from one implementation.
+ * The server renders the same template twice: `snippetText` with `${n}` tab
+ * stops (used here) and `plainText` with the defaults inlined. When the server
+ * reports no fields the text is literal, so `plainText` is inserted as-is to
+ * avoid a stray `$` / `}` being read as snippet syntax.
+ */
 async function applyOneSnippet(editor, doc, snippet) {
-    const snippetString = new vscode.SnippetString(snippet.snippetText);
+    const hasFields = Array.isArray(snippet.fields) && snippet.fields.length > 0;
+    const range = snippet.kind === 'replace'
+        ? new vscode.Range(doc.positionAt(snippet.start), doc.positionAt(snippet.end))
+        : new vscode.Range(editor.selection.active, editor.selection.active);
 
-    if (snippet.kind === 'replace') {
-        const range = new vscode.Range(doc.positionAt(snippet.start), doc.positionAt(snippet.end));
-        await editor.insertSnippet(snippetString, range);
+    if (hasFields) {
+        // Tab stops: let VS Code run the snippet session.
+        await editor.insertSnippet(new vscode.SnippetString(snippet.snippetText), range);
     } else {
-        await editor.insertSnippet(snippetString, editor.selection.active);
+        // Literal text (port inversion, auto-format): a plain edit, so a '$'
+        // or '}' in the generated code is never read as snippet syntax.
+        const body = snippet.plainText || snippet.snippetText;
+        await editor.edit((builder) => builder.replace(range, body));
     }
-    logLine('snippet applied: ' + (snippet.label || snippet.kind));
+    logLine('snippet applied: ' + (snippet.label || snippet.kind)
+        + (hasFields ? ' (' + snippet.fields.length + ' field(s))' : ''));
 }
 
 /** Registers the snippet commands. */
