@@ -31,9 +31,10 @@ server-linux-x64/**/*.pdb
 server-linux-x64/.playwright/**
 server-linux-x64/**/.playwright/**
 server-linux-x64/**/*.xml
-# Both update scripts are development tools, not part of the package.
+# All update scripts are development tools, not part of the package.
 update-server.bat
 update-server.sh
+update-server-linux.cmd
 
 # icons/** IS shipped: the RTL Hierarchy tree uses the plugin's own SVG
 # assets (light + dark variants) so it matches the desktop editor.

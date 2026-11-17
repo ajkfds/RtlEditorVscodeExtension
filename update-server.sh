@@ -49,8 +49,19 @@
 # Requires the .NET SDK on PATH. Can be run from anywhere; the paths are
 # resolved relative to this file.
 #
-# The script is committed without the executable bit (git on Windows cannot set
-# it), so either run it as `bash update-server.sh ...` or mark it once:
+# Running it ON WINDOWS: a .sh cannot be started meaningfully from cmd or
+# PowerShell. Measured on this machine:
+#   - "cmd /c update-server.sh --help" exits 0 and prints NOTHING (.sh is
+#     associated with "git-bash.exe --no-cd", so a detached Git Bash window
+#     opens and the exit code belongs to the launcher, not to the script)
+#   - the "bash.exe" on PATH is WSL's (C:\windows\system32\bash.exe) and its
+#     dotnet is 8.0.100 - it cannot build this net10.0 project
+# Use update-server-linux.cmd (finds Git for Windows' bash and propagates the
+# exit code), or run this file from a Git Bash prompt:
+#   bash update-server.sh --check
+#
+# The executable bit is committed as 100755, but a Windows checkout drops it,
+# so re-apply it once if you want "./update-server.sh" to work on Linux:
 #   git update-index --chmod=+x RtlEditorVscodeExtension/update-server.sh
 # ---------------------------------------------------------------------------
 

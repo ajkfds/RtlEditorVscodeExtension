@@ -436,6 +436,28 @@ Linux host, where the `--selftest` step is actually executed (on Windows the
 ELF apphost cannot be run, so the script verifies the file magic is ELF
 instead and prints the command to run later).
 
+#### Running it from cmd / PowerShell
+
+A `.sh` cannot be started meaningfully from cmd or PowerShell. Measured on a
+machine with Git for Windows **and** WSL:
+
+| Invocation | Result |
+|---|---|
+| `cmd /c update-server.sh --help` | exit 0, **no output at all** — `.sh` is associated with `git-bash.exe --no-cd`, so a detached Git Bash window opens and the exit code belongs to the launcher |
+| `bash update-server.sh` (the `bash.exe` on PATH is WSL's `C:\windows\system32\bash.exe`) | runs, but `dotnet --version` there is **8.0.100** — it cannot build this `net10.0` project |
+| `bash update-server.sh` (**Git for Windows** `C:\Program Files\Git\bin\bash.exe`) | works |
+
+So use the wrapper, which finds Git for Windows' bash explicitly (never
+`where bash`) and propagates the exit code:
+
+```bat
+update-server-linux.cmd              :: publish + prune
+update-server-linux.cmd --check      :: report the current size
+update-server-linux.cmd --no-publish :: prune an existing publish
+```
+
+`bash update-server.sh ...` from a Git Bash prompt works too.
+
 `extension.js` looks in the folder matching `process.platform` first
 (`server-linux-x64/` on Linux, `server/` elsewhere) and falls back to the other
 one, so a checkout that only has the Windows bundle still starts.
