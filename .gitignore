@@ -3,3 +3,8 @@ node_modules/
 
 # Bundled server binaries (built by scripts/bundle-server.js, not committed)
 server/
+
+# Linux (linux-x64, self-contained) bundle, built by update-server.sh on
+# Windows. A publish is RID specific, so it cannot share server/ with the
+# Windows build; extension.js picks the folder matching process.platform.
+server-linux-x64/

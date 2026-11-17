@@ -372,18 +372,34 @@ function resolveServerCommand(context) {
 
     if (!serverPath) {
         // Prefer a bundled server. The packaged .vsix ships the published
-        // binaries under <extension>/server/ so the extension is self-contained
-        // (no separate build / serverPath needed). Development layouts
-        // (RtlEditorVscodeExtension/ inside the repo, or a sibling publish folder) are
-        // also tried so F5 debugging keeps working. Falling back to
-        // `dotnet run` would execute bin/Debug, which is often stale (a running
-        // server keeps the DLL locked, so the rebuild silently fails).
+        // binaries under <extension>/server/ (Windows) and
+        // <extension>/server-linux-x64/ (Linux), so the extension is
+        // self-contained (no separate build / serverPath needed). Development
+        // layouts (RtlEditorVscodeExtension/ inside the repo, or a sibling
+        // publish folder) are also tried so F5 debugging keeps working. Falling
+        // back to `dotnet run` would execute bin/Debug, which is often stale (a
+        // running server keeps the DLL locked, so the rebuild silently fails).
         const exe = 'SystemVerilogLanguageServer.exe';
         const noExt = 'SystemVerilogLanguageServer';
+        // A publish is RID specific (the managed DLLs, the .deps.json and the
+        // native libraries differ per platform), so the two bundles cannot
+        // share one folder:
+        //   server/              Windows   (update-server.bat)
+        //   server-linux-x64/    Linux     (update-server.sh, self-contained)
+        // Look in the folder that matches this host first, then the other one
+        // (a mismatched apphost simply fails to spawn, so the order only
+        // decides which binary is tried first).
+        const isLinux = process.platform === 'linux';
+        const platformServerDir = isLinux ? 'server-linux-x64' : 'server';
+        const otherServerDir = isLinux ? 'server' : 'server-linux-x64';
         const candidates = [
-            // bundled server (packaged .vsix)
-            vscode.Uri.joinPath(context.extensionUri, 'server', exe).fsPath,
-            vscode.Uri.joinPath(context.extensionUri, 'server', noExt).fsPath,
+            // bundled server (packaged .vsix) for this platform
+            vscode.Uri.joinPath(context.extensionUri, platformServerDir, exe).fsPath,
+            vscode.Uri.joinPath(context.extensionUri, platformServerDir, noExt).fsPath,
+            // bundled server of the other platform (kept last: only useful when
+            // the RID-specific folder was not built yet)
+            vscode.Uri.joinPath(context.extensionUri, otherServerDir, exe).fsPath,
+            vscode.Uri.joinPath(context.extensionUri, otherServerDir, noExt).fsPath,
             // development: publish folder inside / next to the repo
             vscode.Uri.joinPath(context.extensionUri, 'SystemVerilogLanguageServer', 'publish', exe).fsPath,
             vscode.Uri.joinPath(context.extensionUri, 'SystemVerilogLanguageServer', 'publish', noExt).fsPath,
@@ -536,6 +552,32 @@ function connectToDebugServer(port) {
 }
 
 /**
+ * Makes the bundled apphost executable on Linux/macOS.
+ *
+ * A RID-specific publish produces a native launcher (an ELF binary for
+ * linux-x64), but the executable permission bit is a POSIX attribute that a
+ * Windows cross-publish cannot set and that zip / .vsix packaging does not
+ * preserve. Without it spawn() fails with EACCES ("spawn ... EACCES"), which
+ * looks like a missing server. The extension folder is writable by the user
+ * who installed the extension, so fixing the bit here is enough.
+ */
+function ensureServerExecutable(command) {
+    if (process.platform === 'win32') return;
+    if (!command || !require('fs').existsSync(command)) return;
+    try {
+        const fs = require('fs');
+        const mode = fs.statSync(command).mode;
+        // 0o111 = any execute bit set
+        if ((mode & 0o111) === 0) {
+            fs.chmodSync(command, mode | 0o755);
+            logLine('set the executable bit on ' + command);
+        }
+    } catch (e) {
+        logLine('could not set the executable bit on ' + command + ': ' + e.message);
+    }
+}
+
+/**
  * Spawns the server and wraps it in a client (the normal, packaged path).
  *
  * Returns { client, spawnFailed }:
@@ -550,13 +592,15 @@ function createSpawnedClient() {
         return {
             client: null,
             spawnFailed: Promise.reject(new Error(
-                'server executable not found. The extension expects a bundled server under <extension>/server/ ' +
+                'server executable not found. The extension expects a bundled server under ' +
+                '<extension>/server/ (Windows) or <extension>/server-linux-x64/ (Linux) ' +
                 '(or set "systemverilogLsp.serverPath" to a published SystemVerilogLanguageServer binary). ' +
-                'To build it: dotnet publish SystemVerilogLanguageServer/SystemVerilogLanguageServer.csproj -c Release'
+                'To build it: update-server.bat (Windows) / update-server.sh (linux-x64)'
             )),
         };
     }
 
+    ensureServerExecutable(server.command);
     logLine('starting server: ' + server.command + ' ' + server.args.join(' '));
     const proc = spawn(server.command, server.args, { stdio: ['pipe', 'pipe', 'pipe'] });
     // These run from ChildProcess event handlers. logLine() is guarded, but the

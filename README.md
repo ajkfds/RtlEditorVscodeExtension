@@ -407,17 +407,62 @@ below:
 
 Then it prints the resulting file count and runs `--selftest`.
 
+#### Linux bundle (`server-linux-x64/`)
+
+A publish is bound to one RID: the managed DLLs, the `.deps.json` and the native
+libraries differ per platform, so a Windows and a Linux bundle cannot share one
+folder. `server/` stays the Windows bundle; the Linux one is built into
+`server-linux-x64/` by **`update-server.sh`**:
+
+```bash
+./update-server.sh              # empty server-linux-x64/, publish, prune
+./update-server.sh --check      # just report the current size
+./update-server.sh --no-publish # prune an existing publish without rebuilding
+```
+
+It publishes with
+
+```
+dotnet publish SystemVerilogLanguageServer/SystemVerilogLanguageServer.csproj \
+    -c Release -r linux-x64 --self-contained true -o RtlEditorVscodeExtension/server-linux-x64 \
+    -p:DebugType=None -p:DebugSymbols=false -p:CopyOutputSymbolsToPublishDirectory=false
+```
+
+so the result runs on a Linux machine **without a .NET runtime installed**.
+
+The compilation itself happens **on Windows**: `-r linux-x64` cross-compiles
+from a Windows SDK, so run the script from Git Bash / MSYS2. It also works on a
+Linux host, where the `--selftest` step is actually executed (on Windows the
+ELF apphost cannot be run, so the script verifies the file magic is ELF
+instead and prints the command to run later).
+
+`extension.js` looks in the folder matching `process.platform` first
+(`server-linux-x64/` on Linux, `server/` elsewhere) and falls back to the other
+one, so a checkout that only has the Windows bundle still starts.
+
+> **Executable bit**: a RID-specific publish produces a native launcher, but the
+> `+x` permission is a POSIX attribute that a Windows cross-publish cannot set
+> and that zip / `.vsix` packaging does not preserve. `extension.js` sets it
+> (`chmod +x`) before spawning the server on non-Windows hosts, so a bundle
+> copied over from Windows works as-is.
+
 > **Why the prune is mandatory**: the VS Code extension development host dies
 > with **exit code 134** (SIGABRT) about a second after
 > `Loading development extension`, with no `exthost` folder and no crash log,
 > when `server/` is too large. That reads as "the extension failed to start".
-> It happened at 322 files / 734.9 MB; a healthy folder is about **147 files /
-> 100 MB**. Note that `-p:CopyOutputSymbolsToPublishDirectory=false` alone does
-> **not** prevent this — publishing into an empty folder still produced
-> 314 files / 733.9 MB (six `.pdb` plus the whole `.playwright` bundle), so the
-> prune step is what keeps it small. An `AfterTargets="Publish"` MSBuild target
-> was tried instead and does not work (`-o <relative dir>` makes the item globs
-> resolve against the project directory), which is why this is a script.
+> It happened at 322 files / 734.9 MB; a healthy framework-dependent folder is
+> about **147 files / 100 MB**. Note that
+> `-p:CopyOutputSymbolsToPublishDirectory=false` alone does **not** prevent
+> this — publishing into an empty folder still produced 314 files / 733.9 MB
+> (six `.pdb` plus the whole `.playwright` bundle), so the prune step is what
+> keeps it small. An `AfterTargets="Publish"` MSBuild target was tried instead
+> and does not work (`-o <relative dir>` makes the item globs resolve against
+> the project directory), which is why this is a script.
+>
+> For the **self-contained** Linux bundle the file count is a bad criterion:
+> the whole .NET runtime ships with it, so `server-linux-x64/` is
+> **322 files / ~139 MB** when healthy — the same file count as the bloated
+> folder above. Judge it by size, which is what `update-server.sh` does.
 
 `npm run package` / `npm run vsix` runs `scripts/bundle-server.js`, which
 performs the same three steps (plus the `.vsix` build).

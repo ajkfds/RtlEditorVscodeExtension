@@ -22,5 +22,18 @@ server/.playwright/**
 server/**/.playwright/**
 server/**/*.xml
 
+# The Linux bundle (server-linux-x64/, built by update-server.sh) IS shipped too,
+# otherwise the same .vsix cannot run on Linux at all (extension.js picks the
+# folder matching process.platform). It is a self-contained publish, so it
+# carries the whole .NET runtime: ~139 MB / 322 files measured. That cost is
+# intentional - the alternative is a per-platform .vsix.
+server-linux-x64/**/*.pdb
+server-linux-x64/.playwright/**
+server-linux-x64/**/.playwright/**
+server-linux-x64/**/*.xml
+# Both update scripts are development tools, not part of the package.
+update-server.bat
+update-server.sh
+
 # icons/** IS shipped: the RTL Hierarchy tree uses the plugin's own SVG
 # assets (light + dark variants) so it matches the desktop editor.
