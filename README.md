@@ -196,13 +196,19 @@ Explorer container.
 
 ### Node menu defined in C#
 
-The node menu mixes rows this extension implements itself (Add Folder, Add Blank
-File, Delete) with rows the **language server** defines. Both are ordinary
-`contributes` rows, so they look and behave identically - the C#-defined ones
-just have their ids and labels generated from the server's catalog.
+**Every** row of the node menu is defined by the language server - there are no
+hand-written rows left in this extension. The same catalog
+(`CoreBridge.HierarchyMenuCatalog`) also drives the desktop editor's NavigatePanel
+right-click menu, so the two environments cannot drift apart.
 
 | Entry | What it does |
 |---|---|
+| `Add` › `Folder` | creates an empty directory next to the node |
+| `Add` › `Blank File` | creates an empty file |
+| `Add` › `verilog module` | creates a `.v` file with a module skeleton |
+| `Add` › `SystemVerilog module` | creates a `.sv` file with a module skeleton |
+| `Add` › `SystemVerilog interface` | creates a `.sv` file with an interface skeleton |
+| `Delete` | deletes the node's file / directory (asks first) |
 | `Simulation` › `Simulation Setup (files)` | lists the top module, the files the simulator would compile and the include paths (the same `SimulationSetup` collection the desktop editor's Run Simulation uses), plus any unresolved references |
 | `Open in Explorer` | reveals the node's file in the OS file manager |
 | `Copy Path` | copies the workspace-relative path |
@@ -211,7 +217,22 @@ just have their ids and labels generated from the server's catalog.
 
 The rows live in the plugin's `CoreBridge.HierarchyMenuCatalog`, including the
 submenu nesting (`Entry.ParentId` / `Entry.IsSubmenu`); a plugin can append its
-own with `HierarchyMenuCatalog.Register(...)`.
+own with `HierarchyMenuCatalog.Register(...)`. A row also declares which hosts
+offer it (`Entry.Hosts`): editor-only entries such as `Parse All` or
+`Run Simulation` are declared `Hosts.Desktop` and never reach this extension.
+
+#### Who performs the file-system work
+
+The server decides **what** to do and **where** (`NavigateNodeMenuAdapter`), and
+answers `rtl/hierarchyMenuInvoke` with a `ClientOperation`
+(`createFolder` / `createFile` / `delete` / `reveal` + path + content). The
+extension performs it through `vscode.workspace.fs`
+(`executeClientOperation` in `hierarchy.js`) so remote and virtual file systems
+keep working - the language server must not write files behind VS Code's back.
+
+A row that needs a name answers with `prompt`; the extension asks for it and
+calls the entry again with `argument` set, mirroring the editor's input window.
+Do **not** implement a menu action in `hierarchy.js`: add the row to the catalog.
 
 #### Why the rows are generated
 
@@ -230,7 +251,11 @@ Copy `commands` / `submenus` / `menus.viewItemContext` from the output into
 `package.json`. Each generated command id is
 `systemverilogLsp.hierarchy.<catalog id>`, and `hierarchy.js` registers one
 implementation per id (`GENERATED_HIERARCHY_MENU_IDS`) that forwards to
-`rtl/hierarchyMenuInvoke` - the same path the static rows use.
+`rtl/hierarchyMenuInvoke`.
+
+Only rows declared `Hosts.VsCode` are emitted, so an editor-only entry never
+appears here. The manifest output also drives the generated blocks in
+`package.json`: regenerate after changing the catalog (the tests fail otherwise).
 
 `SystemVerilogLanguageServer.Tests/HierarchyMenuManifestTests` fails when
 `package.json`, `hierarchy.js` and the catalog drift apart.

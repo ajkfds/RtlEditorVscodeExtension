@@ -42,10 +42,16 @@ const GENERATED_COMMAND_PREFIX = 'systemverilogLsp.hierarchy.';
 // Catalog entry ids that have a native row. Kept in the same order as the
 // generated package.json rows; the test compares this list with the catalog.
 const GENERATED_HIERARCHY_MENU_IDS = [
+    'addBlankFile',
+    'addFolder',
+    'addSystemVerilogInterface',
+    'addSystemVerilogModule',
+    'addVerilogModule',
     'simulationSetup',
+    'deleteNode',
     'openInExplorer',
-    'copyPath',
     'copyInstancePath',
+    'copyPath',
     'showProperty',
 ];
 
@@ -539,138 +545,70 @@ function registerHierarchy(context, ensureClient, log, revealLog) {
         })
     );
 
-    // ---- file system operations (mirror the editor's NavigatePanel menu) ----
-    // These act on the on-disk file / folder the node represents, then ask the
-    // server to re-scan so the tree (and parse results) reflect the change.
+    // ---- file system operations (performed for the C# catalog) --------------
+    //
+    // Every row in the node menu - including Add / Delete / Open / Copy Path -
+    // is declared in the plugin's CoreBridge.HierarchyMenuCatalog. The catalog
+    // decides what to do and returns a ClientOperation ({ kind, path, content });
+    // this function performs it. The split matters: the decision and the path
+    // stay in C#, while the actual I/O goes through vscode.workspace.fs so
+    // remote and virtual file systems keep working (the language server must not
+    // write files behind VS Code's back).
+    //
+    // Do not re-implement a menu action here: add the row to the catalog.
 
-    // The server resolves the absolute paths (fsPath / dirPath) for every node,
-    // so the client never joins paths itself. The uri fallback only covers an
-    // older server that does not send them yet.
-    const resolveFsPath = (node) => {
-        if (!node) return undefined;
-        if (node.fsPath) return node.fsPath;
-        if (node.uri) {
-            try { return vscode.Uri.parse(node.uri).fsPath; } catch (e) { /* ignore */ }
+    /**
+     * Performs the file-system operation the server returned.
+     * @param {{kind: string, path?: string, content?: string, recursive?: boolean}} operation
+     * @returns {Promise<boolean>} true when the tree should be refreshed
+     */
+    async function executeClientOperation(operation) {
+        if (!operation || !operation.path) return false;
+
+        switch (operation.kind) {
+            case 'createFolder':
+                await vscode.workspace.fs.createDirectory(vscode.Uri.file(operation.path));
+                return true;
+
+            case 'createFile': {
+                const uri = vscode.Uri.file(operation.path);
+                const content = operation.content || '';
+                await vscode.workspace.fs.writeFile(uri, Buffer.from(content, 'utf8'));
+                // Open the new file so the user can start editing it (the editor
+                // opens a newly created module too).
+                if (content) await openAt(uri.toString(), 0, 0);
+                return true;
+            }
+
+            case 'delete':
+                await vscode.workspace.fs.delete(
+                    vscode.Uri.file(operation.path), { recursive: true, useTrash: true });
+                return true;
+
+            case 'reveal':
+                await vscode.commands.executeCommand(
+                    'revealFileInOS', vscode.Uri.file(operation.path));
+                return false;
+
+            default:
+                provider.log('unknown menu operation: ' + operation.kind);
+                return false;
         }
-        return undefined;
-    };
-    // folder the node lives in (for Add): the server sends it as dirPath
-    const resolveDirPath = (node) => {
-        if (!node) return undefined;
-        if (node.dirPath) return node.dirPath;
-        const fsPath = resolveFsPath(node);
-        if (fsPath) return require('path').dirname(fsPath);
-        return undefined;
-    };
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('systemverilogLsp.addFolder', async (item) => {
-            const node = item || view.selection[0];
-            const dir = resolveDirPath(node);
-            if (!dir) return;
-            const name = await vscode.window.showInputBox({ prompt: 'New folder name' });
-            if (!name) return;
-            try {
-                await vscode.workspace.fs.createDirectory(vscode.Uri.file(require('path').join(dir, name)));
-                provider.refresh();
-            } catch (e) {
-                vscode.window.showErrorMessage('Add Folder failed: ' + e.message);
-            }
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('systemverilogLsp.addBlankFile', async (item) => {
-            const node = item || view.selection[0];
-            const dir = resolveDirPath(node);
-            if (!dir) return;
-            const name = await vscode.window.showInputBox({ prompt: 'New file name (e.g. top.sv)' });
-            if (!name) return;
-            try {
-                const uri = vscode.Uri.file(require('path').join(dir, name));
-                await vscode.workspace.fs.writeFile(uri, new Uint8Array());
-                await openAt(uri.toString(), 0, 0);
-                provider.refresh();
-            } catch (e) {
-                vscode.window.showErrorMessage('Add File failed: ' + e.message);
-            }
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('systemverilogLsp.deleteNode', async (item) => {
-            const node = item || view.selection[0];
-            const fsPath = resolveFsPath(node);
-            if (!fsPath) return;
-            const ok = await vscode.window.showWarningMessage(
-                'Delete ' + require('path').basename(fsPath) + '?', { modal: true }, 'Delete');
-            if (ok !== 'Delete') return;
-            try {
-                await vscode.workspace.fs.delete(vscode.Uri.file(fsPath), { recursive: true, useTrash: true });
-                provider.refresh();
-            } catch (e) {
-                vscode.window.showErrorMessage('Delete failed: ' + e.message);
-            }
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('systemverilogLsp.copyPath', async (item) => {
-            const node = item || view.selection[0];
-            // prefer the workspace-relative path (detail) like the editor does,
-            // fall back to the absolute fs path
-            const text = (node && node.detail) ? node.detail : resolveFsPath(node);
-            if (!text) return;
-            await vscode.env.clipboard.writeText(text);
-            vscode.window.setStatusBarMessage('Copied: ' + text, 3000);
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('systemverilogLsp.openInExplorer', async (item) => {
-            const node = item || view.selection[0];
-            const fsPath = resolveFsPath(node);
-            if (!fsPath) return;
-            try {
-                await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(fsPath));
-            } catch (e) {
-                vscode.window.showErrorMessage('Open in Explorer failed: ' + e.message);
-            }
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('systemverilogLsp.showProperty', async (item) => {
-            const node = item || view.selection[0];
-            if (!node) return;
-            const lines = [
-                'label: ' + (node.label || ''),
-                'kind: ' + (node.kind || ''),
-                'uri: ' + (node.uri || ''),
-                'detail: ' + (node.detail || ''),
-                'instancePath: ' + (node.instancePath || ''),
-                'startLine: ' + (node.startLine == null ? '' : node.startLine),
-                'startCharacter: ' + (node.startCharacter == null ? '' : node.startCharacter),
-            ];
-            await vscode.window.showInformationMessage(lines.join('\n'), { modal: true });
-        })
-    );
+    }
 
     // ---- C#-driven node menu ------------------------------------------
     //
     // VS Code's view/item/context menu is declared statically in package.json,
     // so a menu row written in C# could never appear unless this file also knew
-    // about it. Instead the tree registers ONE command per node ("Show Menu...")
-    // and asks the server which rows apply to the selected node
-    // (rtl/hierarchyMenu). The rows live in the plugin's
-    // CoreBridge.HierarchyMenuCatalog, so adding an entry there (or from another
-    // plugin through HierarchyMenuCatalog.Register) shows up here with no
-    // client change at all.
+    // about it. The catalog is the single source of truth and
+    // CoreBridge/HierarchyMenuManifest renders it into package.json, so the
+    // rows are ordinary `contributes` entries - indistinguishable from the ones
+    // this extension used to declare by hand, which is why there are none left.
     //
-    // The rows the tree already implements natively (Add Folder, Delete, ...)
-    // stay as static package.json entries: they are pure file-system actions
-    // that need no analysis. Everything that needs the parse result goes
-    // through the C# catalog.
+    // Each generated command id forwards to rtl/hierarchyMenuInvoke; the server
+    // answers with a ClientOperation that executeClientOperation performs.
+    // "Show Menu..." remains as the fallback that lists rows registered at run
+    // time (those never reach package.json).
 
     /**
      * Shows the C#-defined menu for a hierarchy node and runs the picked entry.
@@ -730,23 +668,17 @@ function registerHierarchy(context, ensureClient, log, revealLog) {
      * (show text / reveal a file / copy to the clipboard).
      */
     async function runNodeMenuEntry(node, id) {
-        let result;
-        try {
-            const client = await provider.ensureClient();
-            if (!client) return;
-            result = await client.request('rtl/hierarchyMenuInvoke', {
-                id,
-                kind: node.kind,
-                uri: node.uri,
-                label: node.label,
-                instancePath: node.instancePath,
-                fsPath: node.fsPath,
-                relativePath: node.detail,
-            });
-        } catch (e) {
-            provider.log('rtl/hierarchyMenuInvoke ERROR: ' + (e && e.stack ? e.stack : e));
-            vscode.window.showErrorMessage('SystemVerilog LSP: the menu action failed (see the log).');
-            return;
+        if (!node) return;
+
+        let result = await invokeNodeMenuEntry(node, id, undefined);
+
+        // A row that needs a name (new folder / file / module) answers with a
+        // prompt; ask for it and run the same entry again with the answer. This
+        // mirrors the editor, where the row opens an input window.
+        if (result && result.prompt) {
+            const input = await vscode.window.showInputBox({ prompt: result.prompt });
+            if (!input || !input.trim()) return;
+            result = await invokeNodeMenuEntry(node, id, input.trim());
         }
 
         if (!result) return;
@@ -759,8 +691,17 @@ function registerHierarchy(context, ensureClient, log, revealLog) {
             vscode.window.setStatusBarMessage('Copied: ' + result.clipboardText, 3000);
             return;
         }
-        if (result.fsPath) {
-            await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(result.fsPath));
+        if (result.operation) {
+            // Confirm a delete the same way the editor asks before removing a
+            // file (the server already decided the path and whether it recurses).
+            if (result.operation.kind === 'delete') {
+                const name = require('path').basename(result.operation.path);
+                const ok = await vscode.window.showWarningMessage(
+                    'Delete ' + name + '?', { modal: true }, 'Delete');
+                if (ok !== 'Delete') return;
+            }
+            const refresh = await executeClientOperation(result.operation);
+            if (refresh) provider.refresh();
             return;
         }
         if (result.text) {
@@ -773,6 +714,33 @@ function registerHierarchy(context, ensureClient, log, revealLog) {
             });
             await vscode.window.showTextDocument(doc, { preview: true });
             provider.log('node menu: ' + result.title + '\n' + result.text);
+        }
+    }
+
+    /**
+     * Asks the server to run one catalog row for a node.
+     * @param {any} node the tree item
+     * @param {string} id the catalog entry id
+     * @param {string|undefined} argument the value the user typed, when the row prompted
+     */
+    async function invokeNodeMenuEntry(node, id, argument) {
+        try {
+            const client = await provider.ensureClient();
+            if (!client) return undefined;
+            return await client.request('rtl/hierarchyMenuInvoke', {
+                id,
+                kind: node.kind,
+                uri: node.uri,
+                label: node.label,
+                instancePath: node.instancePath,
+                fsPath: node.fsPath,
+                relativePath: node.detail,
+                argument,
+            });
+        } catch (e) {
+            provider.log('rtl/hierarchyMenuInvoke ERROR: ' + (e && e.stack ? e.stack : e));
+            vscode.window.showErrorMessage('SystemVerilog LSP: the menu action failed (see the log).');
+            return undefined;
         }
     }
 
