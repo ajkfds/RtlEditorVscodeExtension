@@ -210,6 +210,95 @@
       }
     ],
     "menus": {
+      "systemverilogLsp.hierarchySubmenu.add": [
+        {
+          "command": "systemverilogLsp.hierarchy.addBlankFile",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addBlankFile",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addBlankFile",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addFolder",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addFolder",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addFolder",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addSystemVerilogInterface",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addSystemVerilogInterface",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addSystemVerilogInterface",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addSystemVerilogModule",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addSystemVerilogModule",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addSystemVerilogModule",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addVerilogModule",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addVerilogModule",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.addVerilogModule",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
+          "group": "010_hierarchyMenu"
+        }
+      ],
+      "systemverilogLsp.hierarchySubmenu.simulation": [
+        {
+          "command": "systemverilogLsp.hierarchy.simulationSetup",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
+          "group": "010_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.simulationSetup",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
+          "group": "010_hierarchyMenu"
+        }
+      ],
       "editor/context": [
         {
           "command": "systemverilogLsp.snippet.alwaysFF",
@@ -306,97 +395,12 @@
           "group": "010_hierarchyMenu"
         },
         {
-          "command": "systemverilogLsp.hierarchy.addBlankFile",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addBlankFile",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addBlankFile",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addFolder",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addFolder",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addFolder",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addSystemVerilogInterface",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addSystemVerilogInterface",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addSystemVerilogInterface",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addSystemVerilogModule",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addSystemVerilogModule",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addSystemVerilogModule",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addVerilogModule",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addVerilogModule",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.addVerilogModule",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
-          "group": "010_hierarchyMenu"
-        },
-        {
           "submenu": "systemverilogLsp.hierarchySubmenu.simulation",
           "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
           "group": "010_hierarchyMenu"
         },
         {
           "submenu": "systemverilogLsp.hierarchySubmenu.simulation",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.simulationSetup",
-          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
-          "group": "010_hierarchyMenu"
-        },
-        {
-          "command": "systemverilogLsp.hierarchy.simulationSetup",
           "when": "view == systemverilogLsp.hierarchy && viewItem == rtlInstance",
           "group": "010_hierarchyMenu"
         },
