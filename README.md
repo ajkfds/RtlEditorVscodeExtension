@@ -283,6 +283,20 @@ never ship a stale menu. `update-server.bat` / `update-server.sh` print a warnin
 (not an error) when `package.json` is out of date, because the server itself is
 fine in that state - only the menu is stale, and nothing else reports it.
 
+#### Menu row icons
+
+A catalog row can carry an icon, and it is emitted as
+`contributes.commands[].icon`:
+
+- a bare name (`"verilog-document"`) becomes a light / dark pair from `icons/`;
+- a codicon (`"$(trash)"`) is passed through.
+
+**VS Code does not draw icons in `view/item/context` menus.** The schema has no
+icon property for those rows, so the native right-click menu is text only - a
+VS Code limitation, not a missing declaration. The icon is visible in the
+command palette and in any toolbar placement, and the `Show Menu...` QuickPick
+draws it too (that path uses `entry.icon` from `rtl/hierarchyMenu`).
+
 #### Tree icons
 
 The error / warning / dirty overlays are baked into the SVG assets

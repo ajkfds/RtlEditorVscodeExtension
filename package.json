@@ -97,27 +97,44 @@
       {
         "command": "systemverilogLsp.hierarchy.addBlankFile",
         "title": "Blank File",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": "$(new-file)"
       },
       {
         "command": "systemverilogLsp.hierarchy.addFolder",
         "title": "Folder",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": {
+          "light": "icons/folder.svg",
+          "dark": "icons/folder-dark.svg"
+        }
       },
       {
         "command": "systemverilogLsp.hierarchy.addSystemVerilogInterface",
         "title": "SystemVerilog interface",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": {
+          "light": "icons/systemverilog-document.svg",
+          "dark": "icons/systemverilog-document-dark.svg"
+        }
       },
       {
         "command": "systemverilogLsp.hierarchy.addSystemVerilogModule",
         "title": "SystemVerilog module",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": {
+          "light": "icons/systemverilog-document.svg",
+          "dark": "icons/systemverilog-document-dark.svg"
+        }
       },
       {
         "command": "systemverilogLsp.hierarchy.addVerilogModule",
         "title": "verilog module",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": {
+          "light": "icons/verilog-document.svg",
+          "dark": "icons/verilog-document-dark.svg"
+        }
       },
       {
         "command": "systemverilogLsp.hierarchy.simulationSetup",
@@ -127,27 +144,32 @@
       {
         "command": "systemverilogLsp.hierarchy.deleteNode",
         "title": "Delete",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": "$(trash)"
       },
       {
         "command": "systemverilogLsp.hierarchy.openInExplorer",
         "title": "Open in Explorer",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": "$(folder-opened)"
       },
       {
         "command": "systemverilogLsp.hierarchy.copyInstancePath",
         "title": "Copy Instance Path",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": "$(clippy)"
       },
       {
         "command": "systemverilogLsp.hierarchy.copyPath",
         "title": "Copy Path",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": "$(clippy)"
       },
       {
         "command": "systemverilogLsp.hierarchy.showProperty",
         "title": "Property",
-        "category": "RTL Hierarchy"
+        "category": "RTL Hierarchy",
+        "icon": "$(gear)"
       },
       {
         "command": "systemverilogLsp.runNodeMenuEntry",

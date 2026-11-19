@@ -124,6 +124,37 @@ const ICON_FALLBACKS = {
     'verilog-header-document': 'file-code',
 };
 
+/**
+ * Resolves a menu-row icon for a QuickPick.
+ *
+ * The server sends either an icon name that ships in `icons/`
+ * ("verilog-document") or a codicon in "$(...)" form. The native
+ * view/item/context menu cannot draw an icon at all, so the QuickPick is the
+ * only place the extension can show one next to a node-menu row.
+ *
+ * @param {string|undefined} icon the server-provided icon
+ * @param {vscode.Uri|undefined} extensionUri the extension root, for SVG paths
+ * @returns {vscode.ThemeIcon|{light: vscode.Uri, dark: vscode.Uri}|undefined}
+ */
+function resolveMenuIcon(icon, extensionUri) {
+    if (!icon) return undefined;
+
+    // "$(trash)" -> ThemeIcon('trash')
+    const codicon = /^\$\((.+)\)$/.exec(icon);
+    if (codicon) return new vscode.ThemeIcon(codicon[1]);
+
+    // a bare name we ship an SVG for -> light / dark pair
+    if (ICON_NAMES.has(icon) && extensionUri) {
+        return {
+            light: vscode.Uri.joinPath(extensionUri, 'icons', icon + '.svg'),
+            dark: vscode.Uri.joinPath(extensionUri, 'icons', icon + '-dark.svg'),
+        };
+    }
+
+    // unknown name: fall back to a codicon rather than drawing nothing
+    return new vscode.ThemeIcon(ICON_FALLBACKS[icon] || 'file');
+}
+
 /** One node of the RTL hierarchy tree. */
 class HierarchyItem {
     constructor(options) {
@@ -644,9 +675,15 @@ function registerHierarchy(context, ensureClient, log, revealLog) {
 
         // A QuickPick cannot render a disabled row, so the reason is appended to
         // the description and picking the row only reports it.
+        //
+        // The icon is the only place the extension can draw one for a node-menu
+        // row: VS Code's view/item/context menu has no icon property, so the
+        // native rows are text only. `entry.icon` is an icon name under icons/
+        // or a "$(codicon)" string; resolveIcon handles both.
         const picks = result.entries.map((entry) => ({
             label: entry.label,
             description: entry.enabled ? (entry.detail || '') : (entry.reason || 'unavailable'),
+            iconPath: resolveMenuIcon(entry.icon, provider.extensionUri),
             entry,
         }));
 
