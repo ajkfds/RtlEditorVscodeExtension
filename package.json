@@ -527,6 +527,8 @@
   "scripts": {
     "generate-menu": "node scripts/generate-hierarchy-menu.js",
     "check-menu": "node scripts/generate-hierarchy-menu.js --check",
+    "generate-icons": "node scripts/generate-badge-icons.js",
+    "check-icons": "node scripts/generate-badge-icons.js --check",
     "bundle-server": "node scripts/bundle-server.js",
     "vsix": "node scripts/make-vsix.js",
     "vsix:fast": "node scripts/make-vsix.js --skip-bundle",

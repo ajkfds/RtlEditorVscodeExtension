@@ -283,6 +283,22 @@ never ship a stale menu. `update-server.bat` / `update-server.sh` print a warnin
 (not an error) when `package.json` is out of date, because the server itself is
 fine in that state - only the menu is stale, and nothing else reports it.
 
+#### Tree icons
+
+The error / warning / dirty overlays are baked into the SVG assets
+(`icons/{icon}-{badge}.svg`), because `TreeItem.iconPath` carries one icon and
+cannot draw an overlay. Those variants are generated from the base icons by
+`CoreBridge/BadgeIconGenerator.cs`, and the same command refreshes them:
+
+```bash
+npm run generate-menu    # package.json + badge icons
+npm run generate-icons   # same thing (kept for the documented name)
+npm run check-menu       # fails when either is out of date
+```
+
+`scripts/generate-badge-icons.js` is now a thin wrapper around that C# generator;
+the geometry and colours live in one place only.
+
 `SystemVerilogLanguageServer.Tests/HierarchyMenuManifestTests` and
 `HierarchyMenuManifestSyncTests` fail when `package.json`, `hierarchy.js` and the
 catalog drift apart.
