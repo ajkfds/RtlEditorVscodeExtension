@@ -237,28 +237,55 @@ Do **not** implement a menu action in `hierarchy.js`: add the row to the catalog
 #### Why the rows are generated
 
 VS Code reads `contributes.commands`, `contributes.submenus` and
-`contributes.menus."view/item/context"` from `package.json` when the extension
-loads, and has **no API to add a menu row at run time** (`registerCommand` only
-provides the implementation). To keep the catalog the single source of truth,
-`CoreBridge/HierarchyMenuManifest` renders it into the manifest:
+`contributes.menus` from `package.json` **once, when the extension loads**, and
+has **no API to add a menu row at run time** (`registerCommand` only supplies the
+implementation). A row written in C# therefore only reaches the menu if
+`package.json` already declares it.
 
+`CoreBridge/HierarchyMenuManifest` splices the catalog into `package.json`
+directly - no manual copy step:
+
+```bash
+cd vscode-extension
+npm run generate-menu     # rewrite package.json from the catalog
+npm run check-menu        # exit 1 when package.json is stale
 ```
+
+Equivalently, without node:
+
+```bash
 dotnet SystemVerilogLanguageServer/bin/Debug/net10.0/SystemVerilogLanguageServer.dll \
-    --hierarchy-menu-manifest
+    --write-hierarchy-menu-manifest RtlEditorVscodeExtension/package.json
+dotnet SystemVerilogLanguageServer/bin/Debug/net10.0/SystemVerilogLanguageServer.dll \
+    --check-hierarchy-menu-manifest RtlEditorVscodeExtension/package.json
 ```
 
-Copy `commands` / `submenus` / `menus.viewItemContext` from the output into
-`package.json`. Each generated command id is
-`systemverilogLsp.hierarchy.<catalog id>`, and `hierarchy.js` registers one
-implementation per id (`GENERATED_HIERARCHY_MENU_IDS`) that forwards to
-`rtl/hierarchyMenuInvoke`.
+Only the blocks the generator owns are touched: generated `commands` (ids under
+`systemverilogLsp.hierarchy.`), all of `submenus`, and the generated rows plus the
+submenu-keyed menus inside `contributes.menus`. Everything else - the
+extension's own commands, `editor/context`, `view/title`, `configuration` - is
+left as it is.
+
+Each generated command id is `systemverilogLsp.hierarchy.<catalog id>`, and
+`hierarchy.js` registers one implementation per id
+(`GENERATED_HIERARCHY_MENU_IDS`) that forwards to `rtl/hierarchyMenuInvoke`.
 
 Only rows declared `Hosts.VsCode` are emitted, so an editor-only entry never
-appears here. The manifest output also drives the generated blocks in
-`package.json`: regenerate after changing the catalog (the tests fail otherwise).
+appears here.
 
-`SystemVerilogLanguageServer.Tests/HierarchyMenuManifestTests` fails when
-`package.json`, `hierarchy.js` and the catalog drift apart.
+**Nesting matters**: a row that opens a flyout belongs to `view/item/context`,
+but the submenu's *children* belong to `contributes.menus["<submenu id>"]`.
+Putting a child in `view/item/context` renders it as an ordinary row of the
+tree's context menu - the "Add entries are flat" symptom.
+
+`npm run vsix` / `npm run package` run `generate-menu` first, so a release can
+never ship a stale menu. `update-server.bat` / `update-server.sh` print a warning
+(not an error) when `package.json` is out of date, because the server itself is
+fine in that state - only the menu is stale, and nothing else reports it.
+
+`SystemVerilogLanguageServer.Tests/HierarchyMenuManifestTests` and
+`HierarchyMenuManifestSyncTests` fail when `package.json`, `hierarchy.js` and the
+catalog drift apart.
 
 #### `Show Menu...` fallback
 
@@ -309,18 +336,21 @@ cd vscode-extension
 npm run vsix
 ```
 
-`npm run vsix` (`scripts/make-vsix.js`) runs four steps and stops at the first
+`npm run vsix` (`scripts/make-vsix.js`) runs five steps and stops at the first
 problem with a readable message:
 
 1. **toolchain check** - node / dotnet / `vsce` (falls back to
    `npx --yes @vscode/vsce` when `vsce` is not installed globally)
-2. **bundle the server** - `scripts/bundle-server.js` empties `server/` and runs
+2. **rewrite the menu manifest** - `scripts/generate-hierarchy-menu.js` splices
+   the C# catalog into `package.json`. VS Code reads `contributes` at load time,
+   so a stale manifest is a menu that silently keeps the previous rows
+3. **bundle the server** - `scripts/bundle-server.js` empties `server/` and runs
    `dotnet publish` into it, then prunes symbols, `.playwright/` and the
    non-host native runtimes
-3. **verify the bundle** - runs `--selftest` against the exact DLL that will be
+4. **verify the bundle** - runs `--selftest` against the exact DLL that will be
    shipped, so a missing / stale server fails here instead of silently shipping
    an extension that does nothing
-4. **package** - `vsce package --no-dependencies`, producing
+5. **package** - `vsce package --no-dependencies`, producing
    `systemverilog-lsp-<version>.vsix`
 
 Useful flags:

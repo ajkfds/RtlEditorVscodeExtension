@@ -324,6 +324,28 @@ verify() {
             echo "  [warn] --selftest failed; the server may not start in VS Code"
         fi
     fi
+
+    # The RTL Hierarchy menu rows live in package.json (VS Code reads
+    # `contributes` once at load time and has no API to add a row at run time),
+    # so a catalog change that is not written into package.json never appears.
+    # Not fatal - the server itself is fine - but the symptom is "the menu did
+    # not change" with nothing in any log, so say it here.
+    echo "  menu manifest:"
+    # The generator lives in the Windows/Debug server assembly, not in the
+    # linux-x64 bundle (which cannot be executed on a Windows host).
+    MANIFEST_SERVER="$REPO_ROOT/SystemVerilogLanguageServer/bin/Debug/net10.0/SystemVerilogLanguageServer.dll"
+    if [ -f "$MANIFEST_SERVER" ]; then
+        if dotnet "$MANIFEST_SERVER" --check-hierarchy-menu-manifest "$EXT_DIR/package.json" >/dev/null 2>&1; then
+            echo "  [ok] package.json matches the C# menu catalog"
+        else
+            echo "  [warn] package.json is out of date. The new menu rows will NOT"
+            echo "         appear in VS Code until it is regenerated:"
+            echo "           cd RtlEditorVscodeExtension && npm run generate-menu"
+        fi
+    else
+        echo "  skipped (no server build at $MANIFEST_SERVER)"
+        echo "          run: npm run generate-menu"
+    fi
 }
 
 # ---- 0. --check ------------------------------------------------------------

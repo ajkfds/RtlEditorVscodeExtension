@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 // Builds the installable .vsix for the SystemVerilog LSP extension.
 //
@@ -12,9 +12,13 @@
 // producing a broken .vsix):
 //
 //   1. verify the toolchain (node / dotnet / vsce)
-//   2. bundle the language server into server/   (scripts/bundle-server.js)
-//   3. sanity check the bundle (must start + answer --selftest)
-//   4. package with vsce and report the resulting file
+//   2. rewrite package.json's menu blocks from the C# catalog
+//      (scripts/generate-hierarchy-menu.js) - VS Code reads `contributes` at
+//      load time and cannot be given a row at run time, so a stale manifest is
+//      a menu that silently keeps the previous rows
+//   3. bundle the language server into server/   (scripts/bundle-server.js)
+//   4. sanity check the bundle (must start + answer --selftest)
+//   5. package with vsce and report the resulting file
 //
 // Why the extra sanity check: a .vsix with a missing or stale server is
 // installable but every feature silently does nothing (the extension spawns a
@@ -108,7 +112,17 @@ if (!manifest.repository || !manifest.repository.url) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. bundle the server
+// 2. rewrite the menu manifest
+// ---------------------------------------------------------------------------
+
+// A .vsix that ships a stale package.json has a wrong context menu and no
+// error anywhere: VS Code simply never learns about the new rows. Regenerating
+// here makes the release path immune to the forgotten-paste mistake.
+step('rewriting the RTL Hierarchy menu manifest');
+run(`node "${path.join(__dirname, 'generate-hierarchy-menu.js')}"`, { cwd: repoRoot });
+
+// ---------------------------------------------------------------------------
+// 3. bundle the server
 // ---------------------------------------------------------------------------
 
 if (skipBundle) {

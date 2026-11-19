@@ -163,6 +163,7 @@ call :prune_runtimes
 echo.
 call :report_size
 call :verify
+call :verify_menu_manifest
 
 :finish
 echo.
@@ -294,5 +295,24 @@ if "%ERRORLEVEL%"=="0" (
     echo   [ok] the server answers LSP requests
 ) else (
     echo   [warn] --selftest failed; the server may not start in VS Code
+)
+goto :eof
+
+:verify_menu_manifest
+rem The RTL Hierarchy menu rows live in package.json (VS Code reads
+rem `contributes` once at load time and has no API to add a row at run time),
+rem so a catalog change that is not written into package.json simply never
+rem appears. This step is NOT fatal - the server itself is fine - but it says
+rem so loudly, because the symptom is "the menu did not change" with nothing
+rem in any log.
+echo   menu manifest:
+dotnet "%SERVER_EXE%" --check-hierarchy-menu-manifest "%EXT_DIR%\package.json" >nul 2>nul
+if "%ERRORLEVEL%"=="0" (
+    echo   [ok] package.json matches the C# menu catalog
+) else (
+    echo   [warn] package.json is out of date. The new menu rows will NOT appear
+    echo          in VS Code until it is regenerated:
+    echo            cd RtlEditorVscodeExtension
+    echo            npm run generate-menu
 )
 goto :eof

@@ -32,11 +32,12 @@ const path = require('path');
 // implementation per generated command id. That is why the two groups are
 // indistinguishable in the menu: both are ordinary `contributes` rows.
 //
-// Regenerate after changing the catalog:
-//   dotnet SystemVerilogLanguageServer/bin/Debug/net10.0/SystemVerilogLanguageServer.dll \
-//       --hierarchy-menu-manifest
-// and copy `commands` / `submenus` / `menus.viewItemContext` into package.json.
-// HierarchyMenuManifestTests fails when the two drift apart.
+// Regenerate after changing the catalog (this writes package.json in place -
+// there is no manual copy step any more):
+//   npm run generate-menu      # == dotnet ...dll --write-hierarchy-menu-manifest
+//   npm run check-menu         # fails when package.json is stale
+// HierarchyMenuManifestTests / HierarchyMenuManifestSyncTests fail when the two
+// drift apart.
 const GENERATED_COMMAND_PREFIX = 'systemverilogLsp.hierarchy.';
 
 // Catalog entry ids that have a native row. Kept in the same order as the
