@@ -473,6 +473,11 @@
         },
         {
           "command": "systemverilogLsp.hierarchy.showProperty",
+          "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFolder",
+          "group": "060_hierarchyMenu"
+        },
+        {
+          "command": "systemverilogLsp.hierarchy.showProperty",
           "when": "view == systemverilogLsp.hierarchy && viewItem == rtlFile",
           "group": "060_hierarchyMenu"
         },
