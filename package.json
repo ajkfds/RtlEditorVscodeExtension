@@ -28,6 +28,13 @@
   ],
   "main": "./extension.js",
   "contributes": {
+    "grammars": [
+      {
+        "language": "systemverilog-hover",
+        "scopeName": "source.systemverilog.hover",
+        "path": "./syntaxes/systemverilog.tmLanguage.json"
+      }
+    ],
     "submenus": [
       {
         "id": "systemverilogLsp.hierarchySubmenu.add",
@@ -517,6 +524,12 @@
           ".v",
           ".vh"
         ]
+      },
+      {
+        "id": "systemverilog-hover",
+        "aliases": [
+          "SystemVerilog (hover)"
+        ]
       }
     ],
     "configurationDefaults": {
@@ -556,6 +569,8 @@
     "check-menu": "node scripts/generate-hierarchy-menu.js --check",
     "generate-icons": "node scripts/generate-badge-icons.js",
     "check-icons": "node scripts/generate-badge-icons.js --check",
+    "generate-hover-grammar": "node scripts/generate-hover-grammar.js",
+    "check-hover-grammar": "node scripts/generate-hover-grammar.js --check",
     "bundle-server": "node scripts/bundle-server.js",
     "vsix": "node scripts/make-vsix.js",
     "vsix:fast": "node scripts/make-vsix.js --skip-bundle",

@@ -1,28 +1,58 @@
 {
-  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "SystemVerilog",
-  "scopeName": "source.systemverilog",
+  "$comment": "Generated from CoreBridge/ElementLabelAdapter.cs (palette) and Verilog/General.cs (keywords). Rewrite it with 'dotnet SystemVerilogLanguageServer.dll --write-hover-grammar <extension folder>' (add --check to only verify). Do not edit it by hand.",
+  "name": "SystemVerilog (hover label)",
+  "scopeName": "source.systemverilog.hover",
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#strings" },
-    { "include": "#numbers" },
-    { "include": "#system-tasks" },
-    { "include": "#macros" },
-    { "include": "#keywords" },
-    { "include": "#types" },
-    { "include": "#operators" }
+    {
+      "include": "#annotations"
+    },
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#system-tasks"
+    },
+    {
+      "include": "#macros"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#operators"
+    }
   ],
   "repository": {
     "comments": {
       "patterns": [
         {
           "name": "comment.line.double-slash.systemverilog",
-          "match": "//.*$"
+          "begin": "//",
+          "end": "$",
+          "patterns": [
+            {
+              "include": "#annotations"
+            }
+          ]
         },
         {
           "name": "comment.block.systemverilog",
           "begin": "/\\*",
-          "end": "\\*/"
+          "end": "\\*/",
+          "patterns": [
+            {
+              "include": "#annotations"
+            }
+          ]
         }
       ]
     },
@@ -53,19 +83,23 @@
       "name": "entity.name.function.preprocessor.systemverilog",
       "match": "`[A-Za-z_][A-Za-z0-9_]*"
     },
+    "annotations": {
+      "name": "keyword.other.annotation.systemverilog",
+      "match": "@(sync|clock|scope|project|samesync|reset)\\b"
+    },
     "keywords": {
       "patterns": [
         {
+          "name": "keyword.operator.direction.systemverilog",
+          "match": "\\b(input|output|inout|ref)\\b"
+        },
+        {
           "name": "keyword.control.systemverilog",
-          "match": "\\b(if|else|case|casex|casez|endcase|default|for|foreach|forever|repeat|while|do|break|continue|return|begin|end|fork|join|join_any|join_none|wait|wait_order|disable|assert|assume|cover|expect|property|endproperty|sequence|endsequence|clocking|endclocking|randcase|randsequence|endsequence)\\b"
+          "match": "\\b(if|else|case|casex|casez|endcase|default|for|foreach|forever|repeat|while|do|break|continue|return|begin|end|fork|join|join_any|join_none|wait|wait_order|disable|assert|assume|cover|expect|property|endproperty|sequence|endsequence|clocking|endclocking|randcase|randsequence)\\b"
         },
         {
           "name": "keyword.other.systemverilog",
-          "match": "\\b(module|endmodule|macromodule|interface|endinterface|package|endpackage|program|endprogram|checker|endchecker|primitive|endprimitive|config|endconfig|class|endclass|extends|implements|virtual|with|inside|dist|iff|posedge|negedge|edge|always|always_comb|always_ff|always_latch|initial|final|assign|force|release|deassign|defparam|generate|endgenerate|genvar|bind|alias|import|export|extern|pure|context|local|static|automatic|typedef|enum|struct|packed|union|tagged|new|null|this|super|unique|priority|rand|randc|constraint|solve|before|cross|coverpoint|covergroup|endgroup|sample|wait_order|timeunit|timeprecision|timescale|cell|use|liblist|instance|design|incdir|include|option|library|nettype|interconnect|soft|expect)\\b"
-        },
-        {
-          "name": "keyword.operator.direction.systemverilog",
-          "match": "\\b(input|output|inout|ref)\\b"
+          "match": "\\b(module|endmodule|macromodule|interface|endinterface|package|endpackage|program|endprogram|checker|endchecker|primitive|endprimitive|class|endclass|extends|implements|virtual|with|inside|dist|iff|posedge|negedge|edge|always|always_comb|always_ff|always_latch|initial|final|assign|force|release|deassign|defparam|generate|endgenerate|genvar|bind|alias|import|export|extern|pure|context|local|static|automatic|typedef|enum|struct|packed|union|tagged|new|null|this|super|unique|priority|rand|randc|constraint|solve|before|cross|coverpoint|covergroup|endgroup|sample|timeunit|timeprecision|timescale|nettype|interconnect|soft|ref|parameter|localparam|specparam|function|endfunction|task|endtask|input|output|inout|signed|unsigned|var|const)\\b"
         }
       ]
     },
@@ -73,13 +107,93 @@
       "patterns": [
         {
           "name": "support.type.systemverilog",
-          "match": "\\b(bit|logic|reg|wire|wand|wor|tri|tri0|tri1|uwire|supply0|supply1|int|integer|byte|shortint|longint|time|real|shortreal|realtime|string|void|event|signed|unsigned|semaphore|mailbox|process|chandle|var|const)\\b"
+          "match": "\\b(bit|logic|reg|wire|wand|wor|tri|tri0|tri1|uwire|supply0|supply1|int|integer|byte|shortint|longint|time|real|shortreal|realtime|string|void|event|semaphore|mailbox|process|chandle)\\b"
         }
       ]
     },
     "operators": {
       "name": "keyword.operator.systemverilog",
-      "match": "(<=|>=|==\\?|!=\\?|===|!==|==|!=|&&&|\\|\\||&&|<<|>>|<<<|>>>|[+\\-*/%!~&|^?:#@])"
+      "match": "<=|>=|==|!=|&&|\\|\\||<<|>>|[-+*/%<>=!~&|^?:;,.()\\[\\]{}#]"
     }
-  }
+  },
+  "settings": [
+    {
+      "scope": "keyword.control.systemverilog",
+      "settings": {
+        "foreground": "#569CD6"
+      }
+    },
+    {
+      "scope": "keyword.other.systemverilog",
+      "settings": {
+        "foreground": "#569CD6"
+      }
+    },
+    {
+      "scope": "keyword.operator.direction.systemverilog",
+      "settings": {
+        "foreground": "#569CD6"
+      }
+    },
+    {
+      "scope": "support.type.systemverilog",
+      "settings": {
+        "foreground": "#569CD6"
+      }
+    },
+    {
+      "scope": "keyword.operator.systemverilog",
+      "settings": {
+        "foreground": "#D4D4D4"
+      }
+    },
+    {
+      "scope": "constant.numeric.systemverilog",
+      "settings": {
+        "foreground": "#CE9178"
+      }
+    },
+    {
+      "scope": "string.quoted.double.systemverilog",
+      "settings": {
+        "foreground": "#CE9178"
+      }
+    },
+    {
+      "scope": "constant.character.escape.systemverilog",
+      "settings": {
+        "foreground": "#CE9178"
+      }
+    },
+    {
+      "scope": "comment.line.double-slash.systemverilog",
+      "settings": {
+        "foreground": "#6A9955"
+      }
+    },
+    {
+      "scope": "comment.block.systemverilog",
+      "settings": {
+        "foreground": "#6A9955"
+      }
+    },
+    {
+      "scope": "keyword.other.annotation.systemverilog",
+      "settings": {
+        "foreground": "#C8FF64"
+      }
+    },
+    {
+      "scope": "support.function.systemverilog",
+      "settings": {
+        "foreground": "#FFB4B4"
+      }
+    },
+    {
+      "scope": "entity.name.function.preprocessor.systemverilog",
+      "settings": {
+        "foreground": "#FF5EC2"
+      }
+    }
+  ]
 }

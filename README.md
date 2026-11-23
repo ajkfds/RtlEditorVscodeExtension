@@ -10,6 +10,12 @@ or build step needed once it is packaged).
 
 - Go to definition / Find references / Hover (markdown) / Outline
   (`documentSymbol`) / Completion
+- **Hover code blocks are coloured** with the parser's palette. A hover shows
+  the parser's own declaration label (the same text and colours the editor's
+  mouse-over hint paints, including its `@sync clk` / `@clock` annotation
+  lines). VS Code strips `style` / `class` from markdown, so the colour comes
+  from a fenced code block plus a TextMate grammar generated from the C#
+  palette - see [Hover colours](#hover-colours)
 - Semantic-token syntax highlighting driven by the parser (including the
   comment annotations such as `// @sync:clk` / `// @clock` / `// @scope ...`,
   which keep the editor's distinct colour instead of blending into the comment).
@@ -29,6 +35,45 @@ or build step needed once it is packaged).
 - **Tool menu** (see below): the editor's `Shift+Space` tool list in a QuickPick
 - **Auto Connect** form (see below): every port of an instantiation in one
   panel, with the signal the editor would connect
+
+## Hover colours
+
+A hover shows the parser's declaration label inside a fenced code block tagged
+`systemverilog-hover`. That block is the only place the extension's TextMate
+grammar applies; it never touches the editor's own highlighting, which stays on
+the semantic tokens (those carry the real parser's colours, including the
+comment annotations).
+
+Why a fence is the only option: VS Code's markdown sanitizer allows only
+`href`, `target`, `src`, `alt`, `title`, `for`, `name`, `role`, `tabindex`,
+`x-dispatch`, `required`, `checked`, `placeholder`, `type`, `start`, `width`,
+`height`, `align` - there is no `style` or `class`, so an inline-coloured
+`<span>` is stripped and the text renders flat. A fence, by contrast, is
+tokenised by a TextMate grammar, and the grammar's colours are what you see.
+
+`syntaxes/systemverilog.tmLanguage.json` is **generated** from C#:
+
+| Input | Source |
+|---|---|
+| colours | `CodeEditor2VerilogPlugin/.../CodeDrawStyle.cs` (the editor palette) |
+| keywords / types | the parser's keyword sets in `CoreBridge/HoverGrammar.cs` |
+
+so the VS Code hover cannot drift from the editor's mouse-over hint. Regenerate
+it after changing either:
+
+```bash
+npm run generate-hover-grammar   # rewrite the grammar
+npm run check-hover-grammar      # fail if it is stale
+```
+
+`npm run vsix` runs the generator before packaging, and
+`HoverGrammarTests` fails the test suite if the committed file is stale, is not
+contributed by `package.json`, colours a scope it does not emit (or vice versa),
+uses a colour outside the palette, or contains a regex that does not compile.
+
+> The grammar is contributed for its own language id, deliberately **not** for
+> `systemverilog`: contributing a grammar for the editor language would take
+> syntax highlighting away from the semantic tokens.
 
 ## Snippets
 

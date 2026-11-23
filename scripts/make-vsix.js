@@ -16,9 +16,12 @@
 //      (scripts/generate-hierarchy-menu.js) - VS Code reads `contributes` at
 //      load time and cannot be given a row at run time, so a stale manifest is
 //      a menu that silently keeps the previous rows
-//   3. bundle the language server into server/   (scripts/bundle-server.js)
-//   4. sanity check the bundle (must start + answer --selftest)
-//   5. package with vsce and report the resulting file
+//   3. rewrite the hover grammar from the C# palette
+//      (scripts/generate-hover-grammar.js) - it is the only channel that can
+//      colour a hover code block, and a stale copy drifts from the editor
+//   4. bundle the language server into server/   (scripts/bundle-server.js)
+//   5. sanity check the bundle (must start + answer --selftest)
+//   6. package with vsce and report the resulting file
 //
 // Why the extra sanity check: a .vsix with a missing or stale server is
 // installable but every feature silently does nothing (the extension spawns a
@@ -120,6 +123,11 @@ if (!manifest.repository || !manifest.repository.url) {
 // here makes the release path immune to the forgotten-paste mistake.
 step('rewriting the RTL Hierarchy menu manifest');
 run(`node "${path.join(__dirname, 'generate-hierarchy-menu.js')}"`, { cwd: repoRoot });
+
+// Same reasoning for the hover grammar: a .vsix that ships a stale copy shows
+// hover code blocks in the previous palette, and nothing reports it.
+step('rewriting the hover grammar');
+run(`node "${path.join(__dirname, 'generate-hover-grammar.js')}"`, { cwd: repoRoot });
 
 // ---------------------------------------------------------------------------
 // 3. bundle the server
