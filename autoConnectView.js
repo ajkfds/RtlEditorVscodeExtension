@@ -311,6 +311,15 @@ function buildHtml(model, nonce) {
       .replace(/"/g, '&quot;');
   }
 
+  // A row whose existing connection is an expression (a bit / part select such
+  // as AAA[2:1], a concatenation, ~x, ...) must keep that text: the candidates
+  // are whole signal names, so replacing the connection with candidates[0]
+  // would silently drop the select. The server marks these rows with
+  // keepsExistingConnection.
+  function keepsExisting(port) {
+    return port.keepsExistingConnection === true;
+  }
+
   function stateOf(port) {
     const current = port.currentConnection || null;
     const result = results[port.name];
@@ -343,8 +352,14 @@ function buildHtml(model, nonce) {
       //   .port( <the signal that will be written> )   -> <best candidate>
       // The arrow only appears when the candidate differs from the result, so
       // a settled row does not repeat the same name twice.
+      //
+      // Rows that keep an expression connection show the candidate as an
+      // alternative without implying it will be applied: the arrow is replaced
+      // by "kept" wording so the user can see the select survives.
       let expr = '.' + esc(port.name) + '(' + esc(result) + ')';
-      if (best && best !== result) {
+      if (keepsExisting(port) && result) {
+        expr += ' <span class="kept-note">(kept as written)</span>';
+      } else if (best && best !== result) {
         expr += ' <span class="arrow">&rarr;</span> ' + esc(best);
         if (candidates.length > 1) {
           expr += ' <span class="more">+' + (candidates.length - 1) + '</span>';
@@ -391,9 +406,19 @@ function buildHtml(model, nonce) {
 
   // Left / Space: connect the best candidate. With no candidate the row keeps
   // its current state (the desktop Accept() does the same).
+  //
+  // A row whose existing connection is an expression (AAA[2:1], {a, b}, ~x, ...)
+  // keeps that text: the candidates are whole signal names, so "accept" on such
+  // a row must not replace the select with the whole signal.
   function acceptRow(index, thenMoveDown) {
     const port = ports[index];
     if (!port) return;
+    if (keepsExisting(port)) {
+      results[port.name] = port.currentConnection || null;
+      if (thenMoveDown) stepSelection(1);
+      render();
+      return;
+    }
     const candidates = port.candidates || [];
     if (candidates.length) results[port.name] = candidates[0];
     if (thenMoveDown) stepSelection(1);
