@@ -1,5 +1,5 @@
 {
-  "$comment": "Generated from CoreBridge/ElementLabelAdapter.cs (palette) and Verilog/General.cs (keywords). Rewrite it with 'dotnet SystemVerilogLanguageServer.dll --write-hover-grammar <extension folder>' (add --check to only verify). Do not edit it by hand.",
+  "$comment": "Generated from SystemVerilogCore/Documents/ElementLabelReader.cs (palette) and SystemVerilogCore/Verilog/General.cs (keywords). Rewrite it with 'dotnet SystemVerilogLanguageServer.dll --write-hover-grammar <extension folder>' (add --check to only verify). Do not edit it by hand.",
   "name": "SystemVerilog (hover label)",
   "scopeName": "source.systemverilog.hover",
   "patterns": [
